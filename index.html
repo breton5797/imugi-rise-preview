@@ -3,84 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="theme-color" content="#0a0716">
-<title>IMUGI RISE — private preview</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="IMUGI RISE — a one-tap flight through Korean folklore. Unreleased preview build.">
+<title>IMUGI RISE</title>
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
-<style id="gateStyle">
-html,body{height:100%;margin:0}
-body{background:#0a0716;color:#f6f0e4;font:15px system-ui,-apple-system,"Segoe UI",sans-serif}
-#gate{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
-#gate h1{font:400 34px "Black Han Sans","Arial Black",sans-serif;margin:0;color:#ffcf5a}
-#gate p{margin:0;color:#a79fb8;max-width:32ch;line-height:1.5}
-#gate input{font:inherit;color:inherit;background:#150f2b;border:1px solid #3b3358;border-radius:12px;padding:12px 14px;width:min(280px,80vw);text-align:center}
-#gate button{font:inherit;font-weight:700;color:#0a0716;background:#f6f0e4;border:0;border-radius:999px;padding:12px 30px;cursor:pointer}
-#gate button:disabled{opacity:.5}
-#gateMsg{min-height:1.5em;color:#ff5a3c}
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<form id="gate" autocomplete="off">
-  <h1>IMUGI RISE</h1>
-  <p>미출시 프리뷰 빌드입니다. 전달받은 암호를 입력하세요.<br>Unreleased preview. Enter the password you were given.</p>
-  <input id="gatePass" type="password" aria-label="Password" autofocus>
-  <button id="gateGo" type="submit">ENTER</button>
-  <div id="gateMsg" role="alert"></div>
-</form>
-<script>
-(function () {
-  var form = document.getElementById('gate'), msg = document.getElementById('gateMsg'), go = document.getElementById('gateGo');
-  var bytes = function (text) { return Uint8Array.from(atob(text), function (c) { return c.charCodeAt(0); }); };
+<div id="stage">
+  <canvas id="c" data-i18n-aria="aria.canvas"></canvas>
 
-  async function open(password) {
-    var res = await fetch('game.enc', { cache: 'no-store' });
-    if (!res.ok) throw new Error('missing');
-    var box = await res.json();
-    var material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-    var key = await crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt: bytes(box.salt), iterations: box.iterations, hash: 'SHA-256' }, material,
-      { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(box.iv) }, key, bytes(box.data));
-    return JSON.parse(new TextDecoder().decode(plain));
-  }
+  <div id="topBar">
+    <div class="pill" id="shardPill" data-i18n-aria="aria.coins"><i>◎</i><span id="shardCount">0</span></div>
+    <button class="ib" id="sfxBtn" data-i18n-aria="aria.sfx" aria-pressed="true">♪</button>
+    <button class="ib" id="musicBtn" data-i18n-aria="aria.music" aria-pressed="true">♫</button>
+    <button class="ib" id="pauseBtn" data-i18n-aria="aria.pause" hidden>II</button>
+  </div>
+  <button id="dashBtn" data-i18n="hud.dashBtn" hidden></button>
+  <div id="coach" role="status" aria-live="polite" hidden></div>
+  <button class="tab" id="tutorialSkip" data-i18n="tutorial.skip" hidden></button>
+  <div id="caption" aria-live="polite" hidden>
+    <div id="capKicker"></div>
+    <div id="capTitle" hidden></div>
+    <div id="capSkip" data-i18n="cutscene.skip"></div>
+  </div>
 
-  function start(game) {
-    var imports = {};
-    Object.keys(game.modules).forEach(function (name) {
-      imports['imugi/' + name] = URL.createObjectURL(new Blob([game.modules[name]], { type: 'text/javascript' }));
-    });
-    var map = document.createElement('script');
-    map.type = 'importmap';
-    map.textContent = JSON.stringify({ imports: imports });
-    document.head.append(map);
-    var style = document.createElement('style');
-    style.textContent = game.css;
-    document.getElementById('gateStyle').remove();
-    document.head.append(style);
-    // The decrypted markup is the game's own index.html body, built by scripts/build.mjs.
-    document.body.innerHTML = game.stage;
-    var entry = document.createElement('script');
-    entry.type = 'module';
-    entry.textContent = "import 'imugi/main.js';";
-    document.body.append(entry);
-  }
+  <section class="overlay" id="menu">
+    <div class="preview" data-i18n="meta.preview"></div>
+    <div>
+      <div class="logo" data-i18n="meta.title"></div>
+      <div class="year" data-i18n="meta.subtitle"></div>
+    </div>
+    <p class="tag" data-i18n="meta.tagline"></p>
+    <div class="modes">
+      <button class="btn" id="playBtn"></button>
+      <button class="btn alt" id="dailyBtn"><span data-i18n="menu.daily"></span><small id="dailyInfo"></small></button>
+      <div class="row">
+        <button class="btn alt small" id="endlessBtn" data-i18n="menu.endless" hidden></button>
+        <button class="btn alt small" id="trialBtn" data-i18n="menu.trial" hidden></button>
+      </div>
+    </div>
+    <nav class="tabs" data-i18n-aria="aria.menu">
+      <button class="tab" data-panel="missions"><span data-i18n="menu.missions"></span><i id="missionDot" hidden></i></button>
+      <button class="tab" data-panel="units" data-i18n="menu.units"></button>
+      <button class="tab" data-panel="lore" data-i18n="menu.lore"></button>
+      <button class="tab" data-panel="records" data-i18n="menu.records"></button>
+      <button class="tab" data-panel="help" data-i18n="menu.help"></button>
+      <button class="tab" data-panel="settings" data-i18n="menu.settings"></button>
+    </nav>
+    <div class="hint" id="menuBest"></div>
+  </section>
 
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    if (!globalThis.crypto || !crypto.subtle) { msg.textContent = 'This browser cannot open the preview (HTTPS is required).'; return; }
-    go.disabled = true;
-    msg.textContent = '';
-    try {
-      start(await open(document.getElementById('gatePass').value));
-    } catch (err) {
-      msg.textContent = err && err.message === 'missing' ? 'Build file not found.' : '암호가 맞지 않습니다 · Wrong password';
-      go.disabled = false;
-    }
-  });
-})();
-</script>
+  <section class="overlay" id="panel" hidden>
+    <div class="card wide">
+      <h2 class="panel-title" id="panelTitle"></h2>
+      <div id="panelBody"></div>
+      <button class="btn small" id="panelClose" data-i18n="panel.back"></button>
+    </div>
+  </section>
+
+  <section class="overlay" id="pauseScr" hidden>
+    <div class="over-title cool" data-i18n="pause.title"></div>
+    <button class="btn" id="resumeBtn" data-i18n="pause.resume"></button>
+    <button class="btn alt small" id="quitBtn" data-i18n="over.menu"></button>
+  </section>
+
+  <section class="overlay" id="reviveScr" hidden>
+    <div class="card">
+      <div class="over-title cool" data-i18n="revive.title"></div>
+      <div class="big" id="reviveCount">4</div>
+      <button class="btn" id="reviveBtn"><span data-i18n="revive.button"></span> <i>◎</i><span id="reviveCost"></span></button>
+      <button class="btn alt small" id="skipBtn" data-i18n="revive.skip"></button>
+    </div>
+  </section>
+
+  <section class="overlay" id="over" hidden>
+    <div class="card">
+      <div class="over-title" id="oTitle"></div>
+      <div class="hint" id="oMode"></div>
+      <div class="big" id="oScore">0</div>
+      <div class="rank" id="oRank"></div>
+      <div class="newbest" id="oNew" data-i18n="over.newBest" hidden></div>
+      <div class="hint" id="oBoard" hidden></div>
+      <div class="stats" id="oStats"></div>
+      <div id="oMissions"></div>
+      <div class="row">
+        <button class="btn" id="retryBtn" data-i18n="over.retry"></button>
+      </div>
+      <div class="row">
+        <button class="btn alt small" id="shareBtn" data-i18n="over.share"></button>
+        <button class="btn alt small" id="menuBtn" data-i18n="over.menu"></button>
+      </div>
+    </div>
+  </section>
+</div>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
